@@ -1,0 +1,84 @@
+---
+import Range from './controls/Range.astro';
+import Toggle from './controls/Toggle.astro';
+import { SHAPE_LIBRARY } from '../lib/shapes';
+import { MAX_SHAPE_SOURCE } from '../lib/customShape';
+---
+
+<dialog id="shape-editor" class="dialog" aria-labelledby="shape-editor-title">
+  <div class="dialog-head">
+    <h2 id="shape-editor-title">Custom shape</h2>
+    <button type="button" class="btn btn-ghost icon-btn" data-close-dialog aria-label="Close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+    </button>
+  </div>
+
+  <div class="dialog-body editor">
+    <div class="editor-main">
+      <section>
+        <h3 class="editor-heading">Library</h3>
+        <div class="shape-library">
+          {
+            SHAPE_LIBRARY.map((s) => (
+              <button type="button" class="shape-option" data-library-shape={s.id} title={s.name} aria-label={s.name}>
+                <Fragment set:html={s.svg} />
+              </button>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="editor-source">
+        <div class="editor-heading-row">
+          <h3 class="editor-heading">SVG source</h3>
+          <div class="editor-tools">
+            <label class="btn btn-ghost btn-sm file-btn">
+              <input type="file" id="shape-upload" accept=".svg,image/svg+xml" />
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+              Upload SVG
+            </label>
+            <button type="button" class="btn btn-ghost btn-sm" id="shape-copy" title="Use the same shape as the dots" hidden>Copy dot shape</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="shape-fit" title="Shrink the viewBox to the shape’s edges so it fills each dot">Fit to bounds</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="shape-clean" title="Strip everything except the usable shapes">Clean up</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="shape-revert" title="Restore the shape and its settings from when you opened the editor">Undo changes</button>
+          </div>
+        </div>
+        <textarea
+          class="code"
+          data-key="customDot.source"
+          rows="9"
+          spellcheck="false"
+          autocapitalize="off"
+          maxlength={MAX_SHAPE_SOURCE}
+          aria-label="SVG source"
+          aria-describedby="shape-status"></textarea>
+        <p id="shape-status" class="shape-status" aria-live="polite"></p>
+      </section>
+    </div>
+
+    <div class="editor-side">
+      <div class="shape-previews">
+        <figure>
+          <svg id="shape-canvas" class="shape-canvas" viewBox="0 0 120 120" role="img" aria-label="Shape preview"></svg>
+          <figcaption id="shape-canvas-caption">Shape in one module</figcaption>
+        </figure>
+        <figure>
+          <svg id="shape-pattern" class="shape-pattern" viewBox="0 0 100 100" role="img" aria-label="Pattern preview"></svg>
+          <figcaption id="shape-pattern-caption">Pattern preview</figcaption>
+        </figure>
+      </div>
+      <Range label="Size" bind="customDot.scale" min={0.3} max={1.5} step={0.05} format="percent" />
+      <Range label="Rotation" bind="customDot.rotation" min={0} max={360} step={5} format="deg" />
+      <div class="toggle-grid">
+        <Toggle label="Flip horizontal" bind="customDot.flipX" />
+        <Toggle label="Flip vertical" bind="customDot.flipY" />
+        <Toggle label="Random rotation" bind="customDot.randomRotation" />
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog-foot">
+    <p class="hint">Shapes are filled with the color you picked for them. Outlines (strokes) are ignored.</p>
+    <button type="button" class="btn btn-primary" data-close-dialog>Done</button>
+  </div>
+</dialog>

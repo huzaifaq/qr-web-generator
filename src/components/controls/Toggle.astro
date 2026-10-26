@@ -1,0 +1,15 @@
+---
+interface Props {
+  label: string;
+  bind: string;
+  showIf?: string;
+}
+
+const { label, bind, showIf } = Astro.props;
+---
+
+<label class="toggle" data-show-if={showIf}>
+  <input type="checkbox" data-key={bind} />
+  <span class="toggle-track" aria-hidden="true"></span>
+  <span>{label}</span>
+</label>

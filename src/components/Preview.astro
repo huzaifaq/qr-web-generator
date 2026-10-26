@@ -1,0 +1,41 @@
+---
+const formats = ['png', 'svg', 'jpeg', 'webp'];
+const sizes = [256, 512, 1024, 2048];
+---
+
+<section class="card preview-card" aria-labelledby="preview-heading">
+  <h2 id="preview-heading" class="sr-only">Preview</h2>
+  <div class="preview-stage">
+    <div id="qr-preview" class="qr-preview" role="img" aria-label="QR code preview"></div>
+    <p id="qr-empty" class="qr-empty" hidden>Fill in the content fields to generate a QR code.</p>
+  </div>
+
+  <ul id="qr-warnings" class="warnings" aria-live="polite"></ul>
+  <p id="qr-meta" class="meta"></p>
+
+  <div class="export">
+    <div class="export-options">
+      <label class="field">
+        <span class="field-label">Format</span>
+        <select id="export-format">
+          {formats.map((f) => <option value={f}>{f.toUpperCase()}</option>)}
+        </select>
+      </label>
+      <label class="field" id="export-size-field">
+        <span class="field-label">Size</span>
+        <select id="export-size">
+          {sizes.map((s) => <option value={s} selected={s === 1024}>{s} × {s}</option>)}
+        </select>
+      </label>
+    </div>
+    <button type="button" id="download" class="btn btn-primary btn-block">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+      Download
+    </button>
+    <div class="export-secondary">
+      <button type="button" id="copy-image" class="btn btn-secondary">Copy image</button>
+      <button type="button" id="share-style" class="btn btn-secondary">Copy style link</button>
+    </div>
+    <p id="toast" class="toast" role="status" aria-live="polite"></p>
+  </div>
+</section>

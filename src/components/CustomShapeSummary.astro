@@ -1,0 +1,20 @@
+---
+import type { CustomShapeKey } from '../lib/state';
+
+interface Props {
+  /** Style key of the custom shape this card controls. */
+  target: CustomShapeKey;
+  hint: string;
+}
+
+const { target, hint } = Astro.props;
+---
+
+<div class="custom-dot-summary" data-show-if={`${target}.enabled`}>
+  <span class="shape-thumb" aria-hidden="true"><svg viewBox="0 0 100 100" data-shape-thumb={target}></svg></span>
+  <div class="custom-dot-text">
+    <strong data-shape-name={target}>Custom shape</strong>
+    <span class="hint">{hint}</span>
+  </div>
+  <button type="button" class="btn btn-secondary btn-sm" data-open-shape-editor={target}>Edit shape…</button>
+</div>

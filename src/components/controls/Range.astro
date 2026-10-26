@@ -1,0 +1,22 @@
+---
+interface Props {
+  label: string;
+  bind: string;
+  min: number;
+  max: number;
+  step?: number;
+  /** How the current value is displayed next to the label. */
+  format?: 'px' | 'deg' | 'percent';
+  showIf?: string;
+}
+
+const { label, bind, min, max, step = 1, format = 'px', showIf } = Astro.props;
+---
+
+<label class="field" data-show-if={showIf}>
+  <span class="field-label">
+    {label}
+    <output class="range-value" data-output-for={bind} data-format={format}></output>
+  </span>
+  <input type="range" data-key={bind} min={min} max={max} step={step} />
+</label>

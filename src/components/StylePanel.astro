@@ -1,0 +1,93 @@
+---
+import Select from './controls/Select.astro';
+import Range from './controls/Range.astro';
+import Toggle from './controls/Toggle.astro';
+import Segmented from './controls/Segmented.astro';
+import ColorField from './controls/ColorField.astro';
+import ShapeEditor from './ShapeEditor.astro';
+import CustomShapeSummary from './CustomShapeSummary.astro';
+import { DOT_TYPES, CORNER_SQUARE_TYPES, CORNER_DOT_TYPES, ERROR_LEVELS } from '../lib/state';
+
+const shapes = [
+  { value: 'square', label: 'Square' },
+  { value: 'circle', label: 'Circle' },
+];
+---
+
+<section class="card style-panel" aria-labelledby="style-heading">
+  <h2 id="style-heading" class="card-title">Style</h2>
+
+  <details class="section" open>
+    <summary>Dots</summary>
+    <div class="section-body">
+      <Select label="Dot shape" bind="dots.type" options={DOT_TYPES} disableIf="customDot.enabled" />
+      <Toggle label="Use a custom SVG shape" bind="customDot.enabled" />
+      <CustomShapeSummary target="customDot" hint="Replaces every dot in the code." />
+      <ColorField label="Dot color" bind="dots.fill" />
+    </div>
+  </details>
+
+  <details class="section">
+    <summary>Corner squares</summary>
+    <div class="section-body">
+      <Select label="Corner square shape" bind="cornersSquare.type" options={CORNER_SQUARE_TYPES} />
+      <Toggle label="Use dot color" bind="cornersSquare.matchDots" />
+      <ColorField label="Corner square color" bind="cornersSquare.fill" showIf="!cornersSquare.matchDots" />
+    </div>
+  </details>
+
+  <details class="section">
+    <summary>Corner dots</summary>
+    <div class="section-body">
+      <Select label="Corner dot shape" bind="cornersDot.type" options={CORNER_DOT_TYPES} disableIf="customCornerDot.enabled" />
+      <Toggle label="Use a custom SVG shape" bind="customCornerDot.enabled" />
+      <CustomShapeSummary target="customCornerDot" hint="Replaces the center of each of the three corner markers." />
+      <p class="hint" data-show-if="cornersDot.type=&customDot.enabled&!customCornerDot.enabled">
+        “Match dots” uses your custom dot shape here, sized to fill the corner.
+      </p>
+      <Toggle label="Use dot color" bind="cornersDot.matchDots" />
+      <ColorField label="Corner dot color" bind="cornersDot.fill" showIf="!cornersDot.matchDots" />
+    </div>
+  </details>
+
+  <details class="section">
+    <summary>Background &amp; shape</summary>
+    <div class="section-body">
+      <Segmented label="Code shape" bind="shape" options={shapes} />
+      <Toggle label="Transparent background" bind="background.transparent" />
+      <ColorField label="Background color" bind="background.fill" showIf="!background.transparent" />
+      <Range label="Corner rounding" bind="background.round" min={0} max={0.5} step={0.01} format="percent" showIf="!background.transparent" />
+      <Range label="Quiet zone (margin)" bind="margin" min={0} max={60} />
+    </div>
+  </details>
+
+  <details class="section">
+    <summary>Logo</summary>
+    <div class="section-body">
+      <div class="logo-picker">
+        <label class="btn btn-secondary file-btn">
+          <input type="file" id="logo-input" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif" />
+          <span id="logo-label">Upload image</span>
+        </label>
+        <img id="logo-thumb" class="logo-thumb" alt="Logo preview" hidden />
+        <button type="button" id="logo-remove" class="btn btn-ghost" hidden>Remove</button>
+      </div>
+      <p class="hint">Your image stays in your browser and is never uploaded. While a logo is set, error correction is forced to <strong>High</strong>.</p>
+      <div data-show-if="$logo">
+        <Range label="Logo size" bind="logo.size" min={0.1} max={0.6} step={0.01} format="percent" />
+        <Range label="Logo padding" bind="logo.margin" min={0} max={20} />
+        <Toggle label="Hide dots behind logo" bind="logo.hideBackgroundDots" />
+      </div>
+    </div>
+  </details>
+
+  <details class="section">
+    <summary>Advanced</summary>
+    <div class="section-body">
+      <Select label="Error correction" bind="errorCorrection" options={ERROR_LEVELS} />
+      <p class="hint">Higher error correction makes the code denser but more resilient to damage, logos and low contrast.</p>
+    </div>
+  </details>
+
+  <ShapeEditor />
+</section>

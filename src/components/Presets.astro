@@ -1,0 +1,37 @@
+---
+import { PRESETS } from '../lib/presets';
+import { SHAPE_LIBRARY } from '../lib/shapes';
+
+const shapeSvg = (id?: string) => SHAPE_LIBRARY.find((s) => s.id === id)?.svg;
+---
+
+<section class="card" aria-labelledby="presets-heading">
+  <div class="card-head">
+    <h2 id="presets-heading" class="card-title">Presets</h2>
+    <div class="card-actions">
+      <button type="button" class="btn btn-ghost btn-sm" id="randomize">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /></svg>
+        Randomize
+      </button>
+      <button type="button" class="btn btn-ghost btn-sm" id="reset">Reset</button>
+    </div>
+  </div>
+  <div class="presets">
+    {
+      PRESETS.map((p) => (
+        <button type="button" class="preset" data-preset={p.id} title={p.name}>
+          <span class="preset-swatch" style={`--sw-fg:${p.swatch[0]};--sw-bg:${p.swatch[1]}`} aria-hidden="true">
+            {shapeSvg(p.swatchShape) ? (
+              <Fragment set:html={shapeSvg(p.swatchShape)!.repeat(4)} />
+            ) : (
+              <>
+                <i /><i /><i /><i />
+              </>
+            )}
+          </span>
+          <span class="preset-name">{p.name}</span>
+        </button>
+      ))
+    }
+  </div>
+</section>

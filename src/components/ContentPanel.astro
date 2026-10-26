@@ -1,0 +1,100 @@
+---
+const tabs = [
+  { id: 'text', label: 'URL / Text', icon: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71' },
+  { id: 'wifi', label: 'WiFi', icon: 'M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01' },
+  { id: 'vcard', label: 'Contact', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
+  { id: 'email', label: 'Email', icon: 'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 6l-10 7L2 6' },
+  { id: 'sms', label: 'SMS', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' },
+  { id: 'phone', label: 'Phone', icon: 'M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z' },
+];
+---
+
+<section class="card" aria-labelledby="content-heading">
+  <h2 id="content-heading" class="card-title">Content</h2>
+
+  <div class="tabs" role="radiogroup" aria-label="Content type">
+    {
+      tabs.map((t, i) => (
+        <label class="tab">
+          <input type="radio" name="ctype" value={t.id} checked={i === 0} data-content-type />
+          <span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d={t.icon} /></svg>
+            {t.label}
+          </span>
+        </label>
+      ))
+    }
+  </div>
+
+  <form id="content-form" class="content-form" autocomplete="off" onsubmit="return false">
+    <div class="panel" data-panel="text">
+      <label class="field">
+        <span class="field-label">URL or text</span>
+        <textarea data-field="text.text" rows="3" placeholder="https://example.com">https://example.com</textarea>
+      </label>
+    </div>
+
+    <div class="panel" data-panel="wifi" hidden>
+      <div class="grid-2">
+        <label class="field">
+          <span class="field-label">Network name (SSID)</span>
+          <input type="text" data-field="wifi.ssid" placeholder="My WiFi" />
+        </label>
+        <label class="field">
+          <span class="field-label">Security</span>
+          <select data-field="wifi.encryption">
+            <option value="WPA">WPA / WPA2 / WPA3</option>
+            <option value="WEP">WEP</option>
+            <option value="nopass">None (open)</option>
+          </select>
+        </label>
+      </div>
+      <label class="field" data-show-if-field="wifi.encryption!=nopass">
+        <span class="field-label">Password</span>
+        <input type="text" data-field="wifi.password" placeholder="Password" />
+      </label>
+      <label class="toggle">
+        <input type="checkbox" data-field="wifi.hidden" />
+        <span class="toggle-track" aria-hidden="true"></span>
+        <span>Hidden network</span>
+      </label>
+    </div>
+
+    <div class="panel" data-panel="vcard" hidden>
+      <div class="grid-2">
+        <label class="field"><span class="field-label">First name</span><input type="text" data-field="vcard.firstName" /></label>
+        <label class="field"><span class="field-label">Last name</span><input type="text" data-field="vcard.lastName" /></label>
+        <label class="field"><span class="field-label">Organization</span><input type="text" data-field="vcard.org" /></label>
+        <label class="field"><span class="field-label">Job title</span><input type="text" data-field="vcard.title" /></label>
+        <label class="field"><span class="field-label">Phone</span><input type="tel" data-field="vcard.phone" /></label>
+        <label class="field"><span class="field-label">Email</span><input type="email" data-field="vcard.email" /></label>
+      </div>
+      <label class="field"><span class="field-label">Website</span><input type="url" data-field="vcard.url" placeholder="https://" /></label>
+      <details class="sub-details">
+        <summary>Address</summary>
+        <label class="field"><span class="field-label">Street</span><input type="text" data-field="vcard.street" /></label>
+        <div class="grid-2">
+          <label class="field"><span class="field-label">City</span><input type="text" data-field="vcard.city" /></label>
+          <label class="field"><span class="field-label">State / Region</span><input type="text" data-field="vcard.region" /></label>
+          <label class="field"><span class="field-label">Postal code</span><input type="text" data-field="vcard.zip" /></label>
+          <label class="field"><span class="field-label">Country</span><input type="text" data-field="vcard.country" /></label>
+        </div>
+      </details>
+    </div>
+
+    <div class="panel" data-panel="email" hidden>
+      <label class="field"><span class="field-label">To</span><input type="email" data-field="email.to" placeholder="name@example.com" /></label>
+      <label class="field"><span class="field-label">Subject</span><input type="text" data-field="email.subject" /></label>
+      <label class="field"><span class="field-label">Message</span><textarea data-field="email.body" rows="3"></textarea></label>
+    </div>
+
+    <div class="panel" data-panel="sms" hidden>
+      <label class="field"><span class="field-label">Phone number</span><input type="tel" data-field="sms.phone" placeholder="+1 555 123 4567" /></label>
+      <label class="field"><span class="field-label">Message</span><textarea data-field="sms.message" rows="3"></textarea></label>
+    </div>
+
+    <div class="panel" data-panel="phone" hidden>
+      <label class="field"><span class="field-label">Phone number</span><input type="tel" data-field="phone.phone" placeholder="+1 555 123 4567" /></label>
+    </div>
+  </form>
+</section>

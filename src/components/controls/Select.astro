@@ -1,0 +1,21 @@
+---
+import type { Option } from '../../lib/state';
+
+interface Props {
+  label: string;
+  bind: string;
+  options: Option[];
+  showIf?: string;
+  /** Visibility-style expression; the select is disabled while it is true. */
+  disableIf?: string;
+}
+
+const { label, bind, options, showIf, disableIf } = Astro.props;
+---
+
+<label class="field" data-show-if={showIf}>
+  <span class="field-label">{label}</span>
+  <select data-key={bind} data-disable-if={disableIf}>
+    {options.map((o) => <option value={o.value}>{o.label}</option>)}
+  </select>
+</label>

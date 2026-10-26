@@ -1,0 +1,35 @@
+---
+import Segmented from './Segmented.astro';
+import Range from './Range.astro';
+
+interface Props {
+  label: string;
+  /** Path to a `Fill` object in the style state, e.g. "dots.fill". */
+  bind: string;
+  showIf?: string;
+}
+
+const { label, bind, showIf } = Astro.props;
+const modes = [
+  { value: 'solid', label: 'Solid' },
+  { value: 'linear', label: 'Linear' },
+  { value: 'radial', label: 'Radial' },
+];
+---
+
+<fieldset class="color-field" data-show-if={showIf}>
+  <legend>{label}</legend>
+  <Segmented label={`${label} fill`} bind={`${bind}.mode`} options={modes} />
+  <div class="color-row">
+    <label class="color-input">
+      <input type="color" data-key={`${bind}.color`} aria-label={`${label} color`} />
+      <input type="text" data-key={`${bind}.color`} class="hex" spellcheck="false" maxlength="7" aria-label={`${label} hex`} />
+    </label>
+    <span class="color-arrow" data-show-if={`${bind}.mode!=solid`} aria-hidden="true">→</span>
+    <label class="color-input" data-show-if={`${bind}.mode!=solid`}>
+      <input type="color" data-key={`${bind}.color2`} aria-label={`${label} gradient end color`} />
+      <input type="text" data-key={`${bind}.color2`} class="hex" spellcheck="false" maxlength="7" aria-label={`${label} gradient end hex`} />
+    </label>
+  </div>
+  <Range label="Rotation" bind={`${bind}.rotation`} min={0} max={360} step={5} format="deg" showIf={`${bind}.mode=linear`} />
+</fieldset>

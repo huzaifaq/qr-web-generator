@@ -1,0 +1,27 @@
+---
+import type { Option } from '../../lib/state';
+
+interface Props {
+  label: string;
+  bind: string;
+  options: Option[];
+  showIf?: string;
+}
+
+const { label, bind, options, showIf } = Astro.props;
+const name = `seg-${bind.replace(/\./g, '-')}`;
+---
+
+<div class="field" role="radiogroup" aria-label={label} data-show-if={showIf}>
+  <span class="field-label">{label}</span>
+  <div class="segmented">
+    {
+      options.map((o) => (
+        <label>
+          <input type="radio" name={name} value={o.value} data-key={bind} />
+          <span>{o.label}</span>
+        </label>
+      ))
+    }
+  </div>
+</div>
