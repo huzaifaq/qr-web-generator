@@ -11,8 +11,7 @@ import type {
   Options,
   ShapeType,
 } from 'qr-code-styling';
-import { DEFAULT_SHAPE_SVG } from './shapes';
-import { MAX_SHAPE_SOURCE } from './customShape';
+import { DEFAULT_SHAPE_SVG, MAX_SHAPE_SOURCE } from './shapes';
 
 export type FillMode = 'solid' | 'linear' | 'radial';
 

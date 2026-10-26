@@ -7,7 +7,9 @@
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-export const MAX_SHAPE_SOURCE = 20_000;
+import { MAX_SHAPE_SOURCE } from './shapes';
+
+export { MAX_SHAPE_SOURCE };
 export const MAX_PRIMITIVES = 40;
 
 type Tag = 'path' | 'circle' | 'ellipse' | 'rect' | 'polygon' | 'polyline';
@@ -248,8 +250,11 @@ function primitivePath(el: Element): string {
  * thin through the middle (an X, a triangle) can make the code undetectable.
  * Browser only: uses canvas Path2D hit testing.
  */
+let hitTestContext: CanvasRenderingContext2D | null | undefined;
+
 export function centerLineCoverage(shape: ParsedShape, t: ShapeTransform): number {
-  const ctx = document.createElement('canvas').getContext('2d');
+  // Hit testing doesn't draw anything, so one small canvas can be reused for every check.
+  const ctx = (hitTestContext ??= document.createElement('canvas').getContext('2d'));
   if (!ctx) return 1;
   const size = 30;
   const samples = 90;

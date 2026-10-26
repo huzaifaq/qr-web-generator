@@ -38,7 +38,7 @@ browser. Content, styles, uploaded logos and SVG shapes are never sent anywhere.
 
 ## Development
 
-Requires Node.js 18.20+ (20+ recommended).
+Requires Node.js 22.23.4 or newer (required by Astro 7).
 
 ```sh
 npm install
@@ -57,7 +57,8 @@ npm run preview   # serve dist/ locally
 dist/
   index.html
   favicon.svg
-  assets/app.<hash>.js
+  assets/app.<hash>.js            main script (~22 KB gzipped)
+  assets/customShapes.<hash>.js   custom-shape editor (~6 KB gzipped), loaded after first render
   assets/index.<hash>.css
 ```
 
@@ -86,6 +87,7 @@ src/
   lib/customShape.ts                safe SVG shape parser, qr-code-styling extension, scan checks
   lib/contrast.ts                   WCAG contrast helpers
   scripts/generator.ts              client controller (DOM <-> state <-> renderer, export)
+  scripts/customShapes.ts           custom shapes: rendering, scan checks, editor (separate chunk)
   styles/global.css                 theme tokens and styles
 tests/                              Vitest unit tests
 ```
@@ -119,6 +121,11 @@ edits both and rebinds its controls to the shape being edited when it opens. If 
 **Match dots** and have no custom shape of their own, they copy the custom dot shape, with its rotation and flips,
 at the corner's default size. Styles saved with the older "use dot shape for corner dots" setting migrate
 automatically.
+
+**Loading.** All custom-shape code is in `scripts/customShapes.ts`, which `generator.ts` imports dynamically.
+The browser fetches it once the first preview is drawn and the page is idle. If a saved or shared style uses a custom
+shape, it's fetched straight away and the first preview waits for it. Keep `state.ts` and the other main-bundle
+modules from importing `lib/customShape.ts` directly, or the bundler will pull it back into the main script.
 
 **Scannability.** Scanners sample the center of each module, so shapes with a hollow or thin center scan poorly.
 Tests with the jsQR and ZXing decoders set the defaults:

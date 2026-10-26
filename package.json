@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.23.4"
+  },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
@@ -11,7 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "astro": "^5.18.2",
+    "astro": "^7.4.2",
     "qr-code-styling": "^1.9.2"
   },
   "devDependencies": {

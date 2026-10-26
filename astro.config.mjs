@@ -11,9 +11,14 @@ export default defineConfig({
     assets: 'assets',
   },
   vite: {
-    build: {
-      rollupOptions: {
-        output: { entryFileNames: 'assets/app.[hash].js' },
+    // Astro 7 applies its own file naming unless it is overridden per environment.
+    environments: {
+      client: {
+        build: {
+          rolldownOptions: {
+            output: { entryFileNames: 'assets/app.[hash].js' },
+          },
+        },
       },
     },
   },

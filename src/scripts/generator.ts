@@ -13,7 +13,6 @@ import {
   setByPath,
   toQrOptions,
   type Fill,
-  type CustomShapeConfig,
   type CustomShapeKey,
   type RenderInput,
   type StyleConfig,
@@ -21,18 +20,7 @@ import {
 import { BYTE_CAPACITY, buildPayload, byteLength, type ContentFields, type ContentType } from '../lib/payloads';
 import { contrastRatio, luminance } from '../lib/contrast';
 import { PRESETS, applyPreset, randomStyle } from '../lib/presets';
-import {
-  createShapeElements,
-  dotAngle,
-  customShapesExtension,
-  parseShape,
-  serializeShape,
-  centerLineCoverage,
-  type CustomShapeLayer,
-  type ParseResult,
-  type ParsedShape,
-} from '../lib/customShape';
-import { SHAPE_LIBRARY } from '../lib/shapes';
+import type { CustomShapes, Warning } from './customShapes';
 
 const STYLE_KEY = 'qr-style';
 const THEME_KEY = 'qr-theme';
@@ -58,6 +46,13 @@ const logoInput = $<HTMLInputElement>('#logo-input');
 const logoThumb = $<HTMLImageElement>('#logo-thumb');
 const logoRemove = $<HTMLButtonElement>('#logo-remove');
 const logoLabel = $('#logo-label');
+
+// The form markup is static, so look the bound controls up once.
+const keyedControls = $$<Control>('[data-key]', styleForm);
+const outputs = $$<HTMLOutputElement>('[data-output-for]', styleForm);
+const showIfEls = $$('[data-show-if]', styleForm);
+const disableIfEls = $$<HTMLSelectElement>('[data-disable-if]', styleForm);
+const showIfFieldEls = $$('[data-show-if-field]', contentForm);
 
 // ---------------------------------------------------------------------------
 // State
@@ -122,7 +117,7 @@ function formatOutput(value: number, format: string | undefined): string {
 }
 
 function writeControls() {
-  for (const el of $$<Control>('[data-key]', styleForm)) {
+  for (const el of keyedControls) {
     const value = getByPath(style, el.dataset.key!);
     if (el instanceof HTMLInputElement && el.type === 'checkbox') el.checked = Boolean(value);
     else if (el instanceof HTMLInputElement && el.type === 'radio') el.checked = el.value === value;
@@ -131,11 +126,12 @@ function writeControls() {
       el.value = String(value ?? '');
     }
   }
-  for (const out of $$<HTMLOutputElement>('[data-output-for]', styleForm)) {
+  for (const out of outputs) {
     out.value = formatOutput(Number(getByPath(style, out.dataset.outputFor!)), out.dataset.format);
   }
   updateVisibility();
-  updateShapeViews();
+  if (shapes) shapes.updateViews();
+  else if (usesCustomShapes()) void loadShapes().catch(() => undefined);
 }
 
 /**
@@ -160,13 +156,13 @@ function evaluate(expr: string, lookup: (path: string) => unknown): boolean {
 }
 
 function updateVisibility() {
-  for (const el of $$('[data-show-if]', styleForm)) {
+  for (const el of showIfEls) {
     el.hidden = !evaluate(el.dataset.showIf!, (p) => getByPath(style, p));
   }
-  for (const el of $$<HTMLSelectElement>('[data-disable-if]', styleForm)) {
+  for (const el of disableIfEls) {
     el.disabled = evaluate(el.dataset.disableIf!, (p) => getByPath(style, p));
   }
-  for (const el of $$('[data-show-if-field]', contentForm)) {
+  for (const el of showIfFieldEls) {
     el.hidden = !evaluate(el.dataset.showIfField!, (p) => getByPath(content, p));
   }
 }
@@ -277,294 +273,46 @@ logoRemove.addEventListener('click', () => {
 
 // ---------------------------------------------------------------------------
 // Custom shapes (dots and corner dots)
+//
+// The custom-shape code (SVG parsing, editor, scan checks) lives in its own chunk.
+// It is fetched when the page goes idle, or right away when a custom shape is in use.
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
-const MAX_UPLOAD_CHARS = 500_000;
-const SHAPE_TARGETS: CustomShapeKey[] = ['customDot', 'customCornerDot'];
-const shapeDialog = $<HTMLDialogElement>('#shape-editor');
-const shapeCanvas = $<SVGSVGElement>('#shape-canvas');
-const shapePattern = $<SVGSVGElement>('#shape-pattern');
-const shapeStatus = $('#shape-status');
-const shapeCopy = $<HTMLButtonElement>('#shape-copy');
+let shapes: CustomShapes | undefined;
+let shapesLoading: Promise<CustomShapes> | undefined;
 
-/** Editor wording per target. */
-const TARGET_TEXT: Record<CustomShapeKey, { title: string; canvas: string; pattern: string }> = {
-  customDot: { title: 'Custom dot shape', canvas: 'Shape in one module', pattern: 'Pattern preview' },
-  customCornerDot: { title: 'Custom corner dot shape', canvas: 'Shape in the 3×3 center', pattern: 'In a corner marker' },
-};
-
-/** Fixed module pattern for the editor's dot pattern preview (1 = dark module). */
-const SAMPLE_PATTERN = [
-  '1011001101',
-  '0110110010',
-  '1101011011',
-  '0010110101',
-  '1110010110',
-  '0101101001',
-  '1011010111',
-  '0100111010',
-  '1101001101',
-  '0110110011',
-];
-
-/** Which custom shape the editor is currently editing. */
-let editorTarget: CustomShapeKey = 'customDot';
-/** Snapshot of the edited shape when the editor opened, for "Undo changes". */
-let configAtOpen: CustomShapeConfig | undefined;
-const parseCache = new Map<string, ParseResult>();
-
-function shapeResult(target: CustomShapeKey): ParseResult {
-  const source = style[target].source;
-  let result = parseCache.get(source);
-  if (!result) {
-    if (parseCache.size > 20) parseCache.clear();
-    result = parseShape(source);
-    parseCache.set(source, result);
-  }
-  return result;
+function usesCustomShapes(): boolean {
+  return style.customDot.enabled || style.customCornerDot.enabled;
 }
 
-function activeShape(target: CustomShapeKey): ParsedShape | null {
-  if (!style[target].enabled) return null;
-  const result = shapeResult(target);
-  return result.ok ? result.shape : null;
+function loadShapes(): Promise<CustomShapes> {
+  shapesLoading ??= import('./customShapes').then(
+    ({ createCustomShapes }) => {
+      shapes = createCustomShapes({ style: () => style, writeControls, saveStyle, scheduleRender });
+      shapes.updateViews();
+      return shapes;
+    },
+    (err) => {
+      shapesLoading = undefined; // allow a retry, e.g. after a network hiccup
+      throw err;
+    },
+  );
+  return shapesLoading;
 }
 
-/** True when corner dots are set to "Match dots" and so copy the custom dot shape. */
-function cornerDotsMatchCustomDots(): boolean {
-  return !style.customCornerDot.enabled && style.cornersDot.type === '' && activeShape('customDot') !== null;
-}
-
-/**
- * The custom shape drawn for the corner dots, if any: their own shape, or with
- * "Match dots" the custom dot shape (same rotation/flips, sized for the 3×3 corner).
- */
-function cornerDotLayer(): CustomShapeLayer | undefined {
-  const own = activeShape('customCornerDot');
-  if (own) return { shape: own, opts: { ...style.customCornerDot } };
-  const dots = activeShape('customDot');
-  if (dots && cornerDotsMatchCustomDots()) {
-    return { shape: dots, opts: { ...style.customDot, scale: DEFAULT_STYLE.customCornerDot.scale } };
-  }
-  return undefined;
-}
-
-/** Create a QR instance, swapping in custom dot / corner dot shapes when active. */
+/** Create a QR instance, with custom dot / corner dot shapes when they're active. */
 function createQr(input: Omit<RenderInput, 'customDots' | 'customCornerDots'>): QRCodeStyling {
-  const dots = activeShape('customDot');
-  const cornerDots = cornerDotLayer();
-  const options = toQrOptions({ ...input, customDots: Boolean(dots), customCornerDots: Boolean(cornerDots) });
-  if (!dots && !cornerDots) return new QRCodeStyling(options);
-  // Register the extension before the first draw so the code is only drawn once.
-  const qr = new QRCodeStyling();
-  qr.applyExtension(
-    customShapesExtension({
-      dots: dots ? { shape: dots, opts: { ...style.customDot } } : undefined,
-      cornerDots,
-    }),
-  );
-  qr.update(options);
-  return qr;
-}
-
-function svgEl<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number> = {}) {
-  const el = document.createElementNS(SVG_NS, tag);
-  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
-  return el;
-}
-
-function shapeGroup(
-  target: CustomShapeKey,
-  shape: ParsedShape,
-  boxes: { x: number; y: number; size: number }[],
-  color: string,
-  random = false,
-) {
-  const config = style[target];
-  const g = svgEl('g', { fill: color });
-  boxes.forEach((box, i) => {
-    const rotation = config.rotation + (random && config.randomRotation ? dotAngle(i) : 0);
-    g.append(...createShapeElements(document, shape, box, { ...config, rotation }));
-  });
-  return g;
-}
-
-/** Solid color used to preview a target's shape in the editor. */
-function targetColor(target: CustomShapeKey): string {
-  if (target === 'customCornerDot' && !style.cornersDot.matchDots) return style.cornersDot.fill.color;
-  return style.dots.fill.color;
-}
-
-/**
- * Point the editor's controls (bound with "customDot.*" keys in the markup) at
- * the target being edited, so the generic binding code handles both shapes.
- */
-function retargetEditor(target: CustomShapeKey) {
-  editorTarget = target;
-  const swap = (value: string) => value.replace(/^(customDot|customCornerDot)\./, `${target}.`);
-  for (const el of $$('[data-key]', shapeDialog)) el.dataset.key = swap(el.dataset.key!);
-  for (const el of $$('[data-output-for]', shapeDialog)) el.dataset.outputFor = swap(el.dataset.outputFor!);
-  const text = TARGET_TEXT[target];
-  $('#shape-editor-title').textContent = text.title;
-  $('#shape-canvas-caption').textContent = text.canvas;
-  $('#shape-pattern-caption').textContent = text.pattern;
-  shapeCopy.hidden = target !== 'customCornerDot';
-}
-
-/** Refresh thumbnails, names, library selection and (when open) the editor previews. */
-function updateShapeViews() {
-  for (const target of SHAPE_TARGETS) {
-    const result = shapeResult(target);
-    const shape = result.ok ? result.shape : null;
-    const libraryMatch = SHAPE_LIBRARY.find((s) => s.svg === style[target].source);
-    for (const el of $$(`[data-shape-name="${target}"]`)) {
-      el.textContent = libraryMatch?.name ?? (shape ? 'Custom SVG' : 'Invalid SVG');
-    }
-    for (const thumb of $$<SVGSVGElement>(`[data-shape-thumb="${target}"]`)) {
-      thumb.replaceChildren(...(shape ? [shapeGroup(target, shape, [{ x: 10, y: 10, size: 80 }], 'currentColor')] : []));
-    }
-  }
-
-  if (!shapeDialog.open) return;
-
-  const target = editorTarget;
-  const result = shapeResult(target);
-  const shape = result.ok ? result.shape : null;
-  const libraryMatch = SHAPE_LIBRARY.find((s) => s.svg === style[target].source);
-  for (const btn of $$('[data-library-shape]')) {
-    btn.setAttribute('aria-pressed', String(btn.dataset.libraryShape === libraryMatch?.id));
-  }
-
-  shapeStatus.classList.toggle('is-error', !shape);
-  shapeStatus.classList.remove('is-warn');
-  if (!result.ok) {
-    shapeStatus.textContent = result.error;
-  } else {
-    const { primitives, ignored, viewBox } = result.shape;
-    let text = `✓ ${primitives.length} shape element${primitives.length === 1 ? '' : 's'} · viewBox ${viewBox.join(' ')}`;
-    if (ignored) text += ` · ${ignored} outline/unsupported element${ignored === 1 ? '' : 's'} ignored`;
-    let thin = false;
-    if (target === 'customCornerDot') {
-      const coverage = cornerCoverage({ shape: result.shape, opts: style.customCornerDot });
-      thin = coverage < MIN_CORNER_COVERAGE;
-      text += ` · center line ${Math.round(coverage * 100)}% filled`;
-      if (thin) text += ' — too thin through the middle, scanners may not find the code (aim for 80%+)';
-    }
-    shapeStatus.textContent = text;
-    shapeStatus.classList.toggle('is-warn', thin);
-  }
-
-  const color = targetColor(target);
-  const bg = style.background.transparent ? '' : style.background.fill.color;
-  shapeCanvas.style.backgroundColor = bg;
-  shapePattern.style.backgroundColor = bg;
-
-  // The area being replaced (dashed outline) with the shape fitted inside it; leaves room for sizes up to 150%.
-  const box = { x: 25, y: 25, size: 70 };
-  shapeCanvas.replaceChildren(
-    svgEl('rect', { x: box.x, y: box.y, width: box.size, height: box.size, class: 'module-box' }),
-    ...(shape ? [shapeGroup(target, shape, [box], color)] : []),
-  );
-
-  if (target === 'customDot') {
-    const boxes = SAMPLE_PATTERN.flatMap((row, y) =>
-      [...row].flatMap((cell, x) => (cell === '1' ? [{ x: x * 10, y: y * 10, size: 10 }] : [])),
-    );
-    shapePattern.replaceChildren(...(shape ? [shapeGroup(target, shape, boxes, color, true)] : []));
-  } else {
-    // A corner marker: 7×7 ring (in the corner square color) around the 3×3 custom dot.
-    const m = 100 / 9;
-    const ringColor = style.cornersSquare.matchDots ? style.dots.fill.color : style.cornersSquare.fill.color;
-    const ring = svgEl('path', {
-      d: `M${m} ${m}h${7 * m}v${7 * m}h${-7 * m}z M${2 * m} ${2 * m}v${5 * m}h${5 * m}v${-5 * m}z`,
-      fill: ringColor,
-      'fill-rule': 'evenodd',
-    });
-    const center = { x: 3 * m, y: 3 * m, size: 3 * m };
-    shapePattern.replaceChildren(ring, ...(shape ? [shapeGroup(target, shape, [center], color)] : []));
-  }
-}
-
-function setShapeSource(source: string) {
-  style[editorTarget].source = source;
-  style[editorTarget].enabled = true;
-  writeControls();
-  saveStyle();
-  scheduleRender();
-}
-
-function showShapeError(message: string) {
-  shapeStatus.textContent = message;
-  shapeStatus.classList.add('is-error');
+  return shapes?.createQr(input) ?? new QRCodeStyling(toQrOptions(input));
 }
 
 for (const btn of $$('[data-open-shape-editor]')) {
-  btn.addEventListener('click', () => {
-    retargetEditor(btn.dataset.openShapeEditor as CustomShapeKey);
-    configAtOpen = { ...style[editorTarget] };
-    writeControls();
-    shapeDialog.showModal();
-    updateShapeViews();
+  btn.addEventListener('click', async () => {
+    try {
+      (await loadShapes()).openEditor(btn.dataset.openShapeEditor as CustomShapeKey);
+    } catch {
+      toast('Couldn’t load the shape editor — check your connection and try again.');
+    }
   });
 }
-for (const btn of $$('[data-close-dialog]', shapeDialog)) btn.addEventListener('click', () => shapeDialog.close());
-// Clicking the backdrop (the dialog element itself, outside its content) closes it.
-shapeDialog.addEventListener('click', (e) => {
-  if (e.target === shapeDialog) shapeDialog.close();
-});
-
-for (const btn of $$('[data-library-shape]')) {
-  btn.addEventListener('click', () => {
-    const shape = SHAPE_LIBRARY.find((s) => s.id === btn.dataset.libraryShape);
-    if (shape) setShapeSource(shape.svg);
-  });
-}
-
-$<HTMLInputElement>('#shape-upload').addEventListener('change', async (e) => {
-  const input = e.currentTarget as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = '';
-  if (!file) return;
-  const result = parseShape(await file.text(), MAX_UPLOAD_CHARS);
-  // Store a cleaned-up version: smaller, readable, and stripped of editor metadata.
-  if (result.ok) setShapeSource(serializeShape(result.shape));
-  else showShapeError(`${file.name}: ${result.error}`);
-});
-
-shapeCopy.addEventListener('click', () => setShapeSource(style.customDot.source));
-
-$('#shape-fit').addEventListener('click', () => {
-  const result = shapeResult(editorTarget);
-  if (!result.ok) return;
-  // Measure the untransformed geometry in a hidden SVG attached to the page.
-  const probe = svgEl('svg', { width: 0, height: 0, style: 'position:absolute;visibility:hidden' });
-  const group = svgEl('g');
-  for (const p of result.shape.primitives) {
-    const el = svgEl(p.tag, p.attrs);
-    if (p.transform) el.setAttribute('transform', p.transform);
-    group.append(el);
-  }
-  probe.append(group);
-  document.body.append(probe);
-  const box = group.getBBox();
-  probe.remove();
-  if (!box.width || !box.height) return;
-  const round = (n: number) => Math.round(n * 100) / 100;
-  setShapeSource(serializeShape({ ...result.shape, viewBox: [round(box.x), round(box.y), round(box.width), round(box.height)] }));
-});
-
-$('#shape-clean').addEventListener('click', () => {
-  const result = shapeResult(editorTarget);
-  if (result.ok) setShapeSource(serializeShape(result.shape));
-});
-
-$('#shape-revert').addEventListener('click', () => {
-  if (!configAtOpen) return;
-  Object.assign(style[editorTarget], configAtOpen, { enabled: true });
-  writeControls();
-  saveStyle();
-  scheduleRender();
-});
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -581,25 +329,8 @@ function fillColors(fill: Fill): string[] {
   return fill.mode === 'solid' ? [fill.color] : [fill.color, fill.color2];
 }
 
-/** Below this center-line coverage, scanners often fail to find the corner markers (measured with jsQR and ZXing). */
-const MIN_CORNER_COVERAGE = 0.8;
-
-/** Center-line coverage of a corner dot layer; with random rotation, the worst of the three corners. */
-function cornerCoverage(layer: CustomShapeLayer): number {
-  const extra = layer.opts.randomRotation ? [0, 1, 2].map(dotAngle) : [0];
-  return Math.min(...extra.map((a) => centerLineCoverage(layer.shape, { ...layer.opts, rotation: layer.opts.rotation + a })));
-}
-
-function thinCornerWarning(coverage: number, matched: boolean): string {
-  return (
-    `The corner dot shape is thin through its middle (${Math.round(coverage * 100)}% of the center line is filled; aim for 80%+), ` +
-    `so scanners may not find the code. ` +
-    (matched ? 'Pick a fuller dot shape, or choose a corner dot shape other than “Match dots”.' : 'Pick a fuller shape or increase its size.')
-  );
-}
-
-function getWarnings(data: string): { level: 'warn' | 'error' | 'info'; text: string }[] {
-  const out: { level: 'warn' | 'error' | 'info'; text: string }[] = [];
+function getWarnings(data: string): Warning[] {
+  const out: Warning[] = [];
   const ec = logo ? 'H' : style.errorCorrection;
   const bytes = byteLength(data);
   const capacity = BYTE_CAPACITY[ec];
@@ -628,31 +359,7 @@ function getWarnings(data: string): { level: 'warn' | 'error' | 'info'; text: st
       out.push({ level: 'info', text: 'Light code on a dark background — some older scanners can’t read inverted codes.' });
     }
   }
-  const ownCorner = shapeResult('customCornerDot');
-  const corner = cornerDotLayer();
-  if (style.customCornerDot.enabled && !ownCorner.ok) {
-    out.push({ level: 'warn', text: `Custom corner dot shape: ${ownCorner.error} Showing the regular corner dots instead.` });
-  } else if (corner) {
-    const coverage = cornerCoverage(corner);
-    if (coverage < MIN_CORNER_COVERAGE) {
-      out.push({ level: 'warn', text: thinCornerWarning(coverage, !style.customCornerDot.enabled) });
-    } else if (corner.opts.scale > 1.4) {
-      out.push({ level: 'warn', text: 'Large corner dot shapes run into the ring around them, which can stop scanners from finding the code. Try a size of 130%.' });
-    }
-  }
-  if (style.customDot.enabled) {
-    const result = shapeResult('customDot');
-    if (!result.ok) {
-      out.push({ level: 'warn', text: `Custom dot shape: ${result.error} Showing regular dots instead.` });
-    } else if (style.customDot.scale < 1) {
-      out.push({ level: 'warn', text: 'Custom shapes smaller than a module leave gaps that many scanners misread. Try a size of 120% or more.' });
-    } else {
-      out.push({
-        level: 'info',
-        text: 'Custom shapes are harder for some scanners to read. Test with a phone; if it struggles, increase the shape size or pick a fuller shape.',
-      });
-    }
-  }
+  if (shapes) out.push(...shapes.warnings());
   if (logo && style.logo.size > 0.45) {
     out.push({ level: 'warn', text: 'A large logo can make the code unreadable — test it with a phone before printing.' });
   }
@@ -673,6 +380,11 @@ function renderWarnings(list: ReturnType<typeof getWarnings>) {
 async function render() {
   clearTimeout(renderTimer);
   const token = ++renderToken;
+  if (usesCustomShapes() && !shapes) {
+    // Draw without custom shapes only if the chunk can't be loaded at all.
+    await loadShapes().catch(() => undefined);
+    if (token !== renderToken) return;
+  }
   const data = currentPayload();
   const warnings = data ? getWarnings(data) : [];
   const blocked = !data || warnings.some((w) => w.level === 'error');
@@ -712,7 +424,8 @@ async function render() {
 // ---------------------------------------------------------------------------
 // Export
 
-function exportInstance(ext: FileExtension): QRCodeStyling {
+async function exportInstance(ext: FileExtension): Promise<QRCodeStyling> {
+  if (usesCustomShapes() && !shapes) await loadShapes().catch(() => undefined);
   return createQr({
     style,
     data: currentPayload(),
@@ -726,7 +439,7 @@ function exportInstance(ext: FileExtension): QRCodeStyling {
 $('#download').addEventListener('click', async () => {
   const ext = formatSel.value as FileExtension;
   try {
-    await exportInstance(ext).download({ name: 'qr-code', extension: ext });
+    await (await exportInstance(ext)).download({ name: 'qr-code', extension: ext });
   } catch (err) {
     toast(`Download failed: ${(err as Error).message}`);
   }
@@ -740,7 +453,7 @@ $('#copy-image').addEventListener('click', async () => {
   try {
     // Pass a promise so Safari keeps the user-gesture context.
     const blob = exportInstance('png')
-      .getRawData('png')
+      .then((qr) => qr.getRawData('png'))
       .then((b) => {
         if (!(b instanceof Blob)) throw new Error('No image data');
         return b;
@@ -793,4 +506,8 @@ $('#theme-toggle').addEventListener('click', () => {
 
 readContentFields();
 writeControls();
-render();
+// After the first preview is on screen, fetch the custom-shape chunk when the page is idle,
+// so the editor opens instantly without competing with the first render.
+const whenIdle: (cb: () => void) => void =
+  'requestIdleCallback' in window ? (cb) => requestIdleCallback(cb, { timeout: 3000 }) : (cb) => setTimeout(cb, 1500);
+render().finally(() => whenIdle(() => void loadShapes().catch(() => undefined)));

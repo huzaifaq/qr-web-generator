@@ -1,6 +1,9 @@
 // Built-in library of custom dot shapes. Each is plain SVG source so it can be
 // loaded into the shape editor and tweaked like an uploaded file.
 
+/** Max length of a custom shape's SVG source (kept small so it fits in storage and share links). */
+export const MAX_SHAPE_SOURCE = 20_000;
+
 export interface LibraryShape {
   id: string;
   name: string;
