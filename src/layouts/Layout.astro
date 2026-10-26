@@ -7,7 +7,9 @@ interface Props {
 }
 
 const { title, description } = Astro.props;
-const base = import.meta.env.BASE_URL;
+const root = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+// dist/sw.js only exists in production builds (see integrations/offline.mjs).
+const serviceWorker = import.meta.env.PROD ? `${root}sw.js` : null;
 ---
 
 <!doctype html>
@@ -17,7 +19,7 @@ const base = import.meta.env.BASE_URL;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <meta name="color-scheme" content="light dark" />
-    <link rel="icon" type="image/svg+xml" href={`${base.replace(/\/?$/, '/')}favicon.svg`} />
+    <link rel="icon" type="image/svg+xml" href={`${root}favicon.svg`} />
     <title>{title}</title>
     <script is:inline>
       try {
@@ -25,6 +27,15 @@ const base = import.meta.env.BASE_URL;
         if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
       } catch {}
     </script>
+    {
+      serviceWorker && (
+        <script is:inline define:vars={{ serviceWorker }}>
+          if ('serviceWorker' in navigator) {
+            addEventListener('load', () => navigator.serviceWorker.register(serviceWorker).catch(() => {}));
+          }
+        </script>
+      )
+    }
   </head>
   <body>
     <slot />

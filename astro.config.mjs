@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import offline from './integrations/offline.mjs';
 
 // Fully static output: `npm run build` writes plain HTML/CSS/JS to dist/.
 // If you serve the site from a sub-path (e.g. https://example.com/qr/),
@@ -22,6 +23,8 @@ export default defineConfig({
       },
     },
   },
+  // Writes dist/sw.js so the site keeps working when the server is down.
+  integrations: [offline()],
   devToolbar: {
     enabled: false,
   },

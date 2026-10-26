@@ -57,6 +57,7 @@ npm run preview   # serve dist/ locally
 dist/
   index.html
   favicon.svg
+  sw.js                           service worker for offline use (see below)
   assets/app.<hash>.js            main script (~22 KB gzipped)
   assets/customShapes.<hash>.js   custom-shape editor (~6 KB gzipped), loaded after first render
   assets/index.<hash>.css
@@ -65,7 +66,18 @@ dist/
 Copy the contents of `dist/` to your web server's document root (for example `/usr/share/nginx/html`).
 No server-side runtime or rewrites are needed. Files in `assets/` have content hashes in their names,
 so they can be cached long-term (`Cache-Control: public, max-age=31536000, immutable`).
-Keep `index.html` uncached or on a short cache.
+Keep `index.html` and `sw.js` uncached or on a short cache. `nginx.conf` already does this.
+
+### Offline use
+
+After someone has opened the site once, it keeps working if the server goes down. The build step
+(`integrations/offline.mjs`) writes `dist/sw.js`, a service worker that caches every file in the build. Pages
+are loaded from the network while the server is up. If the server can't be reached, answers with a 5xx
+(such as a proxy's 502), or takes more than 4 seconds, the cached copy is shown instead. The cache name
+includes a hash of the build, so browsers fetch a new deploy and delete the old files.
+
+Service workers only run over HTTPS or on `localhost`, and only in production builds (`npm run build` /
+`npm run preview`), not `npm run dev`.
 
 To serve from a sub-path such as `https://example.com/qr/`, set `base: '/qr'` in
 `astro.config.mjs` and rebuild.
@@ -89,6 +101,7 @@ src/
   scripts/generator.ts              client controller (DOM <-> state <-> renderer, export)
   scripts/customShapes.ts           custom shapes: rendering, scan checks, editor (separate chunk)
   styles/global.css                 theme tokens and styles
+integrations/offline.mjs            build step that writes dist/sw.js from integrations/sw.js
 tests/                              Vitest unit tests
 ```
 
