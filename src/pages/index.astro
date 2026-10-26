@@ -1,9 +1,9 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import ContentPanel from '../components/ContentPanel.astro';
-import Presets from '../components/Presets.astro';
-import StylePanel from '../components/StylePanel.astro';
-import Preview from '../components/Preview.astro';
+import Layout from "../layouts/Layout.astro";
+import ContentPanel from "../components/ContentPanel.astro";
+import Presets from "../components/Presets.astro";
+import StylePanel from "../components/StylePanel.astro";
+import Preview from "../components/Preview.astro";
 ---
 
 <Layout
@@ -13,34 +13,52 @@ import Preview from '../components/Preview.astro';
   <header class="site-header">
     <div class="brand">
       <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-        <rect width="32" height="32" rx="8" />
-        <path d="M7 7h7v7H7zm2 2v3h3V9zM18 7h7v7h-7zm2 2v3h3V9zM7 18h7v7H7zm2 2v3h3v-3zM18 18h3v3h-3zM22 18h3v3h-3zM18 22h3v3h-3zM22 22h3v3h-3z" />
+        <rect width="32" height="32" rx="8"></rect>
+        <path
+          d="M7 7h7v7H7zm2 2v3h3V9zM18 7h7v7h-7zm2 2v3h3V9zM7 18h7v7H7zm2 2v3h3v-3zM18 18h3v3h-3zM22 18h3v3h-3zM18 22h3v3h-3zM22 22h3v3h-3z"
+        ></path>
       </svg>
       <div>
         <h1>QR Studio</h1>
         <p class="tagline">Styled QR codes, generated in your browser</p>
       </div>
     </div>
-    <button type="button" id="theme-toggle" class="btn btn-ghost icon-btn" aria-label="Toggle dark mode">
-      <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
-      <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+    <button
+      type="button"
+      id="theme-toggle"
+      class="btn btn-ghost icon-btn"
+      aria-label="Toggle dark mode"
+    >
+      <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"
+        ><circle cx="12" cy="12" r="4"></circle><path
+          d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
+        ></path></svg
+      >
+      <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"
+        ><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg
+      >
     </button>
   </header>
 
   <main class="layout">
     <div class="col-content"><ContentPanel /></div>
     <aside class="col-preview"><Preview /></aside>
-    <form id="style-form" class="col-style" autocomplete="off" onsubmit="return false">
+    <form
+      id="style-form"
+      class="col-style"
+      autocomplete="off"
+      onsubmit="return false"
+    >
       <Presets />
       <StylePanel />
     </form>
   </main>
 
   <footer class="site-footer">
-    <p>Everything runs locally — your data never leaves this page.</p>
+    <p>In memory of the one time Sunayana got scammed.</p>
   </footer>
 </Layout>
 
 <script>
-  import '../scripts/generator';
+  import "../scripts/generator";
 </script>
